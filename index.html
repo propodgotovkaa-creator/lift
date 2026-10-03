@@ -74,6 +74,9 @@
   .sparkle { position:absolute; color:#e4ac38; font-size:25px; animation:twinkle 1.5s ease-in-out 3 alternate; }
   @keyframes twinkle { from {opacity:0; transform:scale(.4) rotate(0deg);} to {opacity:1; transform:scale(1) rotate(30deg);} }
   @media(prefers-reduced-motion:reduce) {.sparkle {animation:none;} .roomLight {transition:none;} }
+  .parcel {position:absolute;left:0;top:0;width:76px;height:76px;z-index:3;pointer-events:none;}
+  .parcel.foreground {z-index:5;}
+  .parcel img {width:100%;height:100%;}
 </style>
 </head>
 <body>
@@ -97,12 +100,12 @@
     <div id="intro"><p class="eyebrow" id="progress">ЛИФТ · 0 ИЗ 6 ДОМА</p><h1>Помоги жителям<br>найти свой дом</h1><p>Нажми на лампочку,<br>чтобы прочитать подсказку.</p></div>
     <section id="instruction" class="card" aria-labelledby="hintTitle" hidden>
       <div class="cardArt art" aria-hidden="true"></div>
-      <button id="closeHint" aria-label="Закрыть подсказку">×</button>
+      
       <div class="cardContent"><p class="eyebrow" id="hintNumber">ЖИТЕЛЬ 1 ИЗ 6</p><h2 id="hintTitle">Где живёт кот?</h2><p class="condition" id="condition"></p><p class="cardHint">Выбери кнопку нужного этажа.</p></div>
     </section>
     <section id="success" class="card" aria-labelledby="successTitle" hidden>
       <div class="cardArt art" aria-hidden="true"></div>
-      <div class="cardContent"><p class="eyebrow">ПОЛУЧИЛОСЬ!</p><h2 id="successTitle">Дом заселён!</h2><p class="condition">Все шесть друзей<br>нашли свои квартиры!</p><button id="restart" class="action">Играть ещё раз ↻</button></div>
+      <div class="cardContent"><p class="eyebrow">ПОЛУЧИЛОСЬ!</p><h2 id="successTitle">Дом заселён!</h2><p class="condition">Все шесть друзей<br>нашли свои квартиры!</p><button id="nextSlide" class="action" hidden>Доставить посылки →</button><button id="restart" class="action">Играть ещё раз ↻</button></div>
     </section>
     <div id="sparkles" aria-hidden="true" hidden></div><p id="status" class="srOnly" role="status" aria-live="polite"></p>
     <div id="loading" role="status"><p id="loadTitle">Загружаем дом…</p><p id="loadDetails"></p><button id="retry" class="action" hidden>Попробовать ещё раз</button></div>
@@ -269,10 +272,25 @@
     button.addEventListener('click',()=>chooseFloor(f,button));$('buttons').append(button);buttons.push(button);
     const label=document.createElement('div');label.className='floorLabel';label.id='floor-'+f;label.textContent=f;label.style.top=`${FLOOR_Y[f-1]-95}px`;$('floorLabels').append(label);
   }
+  let slide=1, hintOpened=false;
+  const DELIVERIES=[
+    {floor:3,hint:'Получатель живёт выше медвежонка, но не выше зайчика. Он не сосед собаки.'},
+    {floor:4,hint:'Получатель живёт ниже лисы, но не ниже зайчика. Он не сосед лисы.'},
+    {floor:2,hint:'Посылка едет ниже зайчика, но не на соседний с ним этаж. Получатель живёт выше ёжика.'},
+    {floor:5,hint:'Получатель живёт выше кота, но не выше собаки. Он не сосед кота.'},
+    {floor:1,hint:'Получатель живёт ниже зайчика. Между ним и котом ровно один этаж.'},
+    {floor:6,hint:'Посылка едет выше зайчика, но не на соседний с ним этаж.'}
+  ];
+  const parcels=DELIVERIES.map(d=>{
+    const el=document.createElement('div');el.className='parcel';el.hidden=true;el.setAttribute('role','img');el.setAttribute('aria-label','Посылка');
+    const img=new Image();img.src='./gitkeep/lift-parcel-v1.png';img.alt='';el.append(img);$('stage').append(el);
+    return {...d,el,x:170,y:FLOOR_Y[0]};
+  });
   function announce(text){$('status').textContent=text;}
-  function setPhase(value){phase=value;$('stage').dataset.phase=value;buttons.forEach(b=>b.disabled=value!=='ready');$('bulb').disabled=['loading','complete','resetting'].includes(value);}
+  function setPhase(value){phase=value;$('stage').dataset.phase=value;buttons.forEach(b=>b.disabled=value!=='ready'||!hintOpened);$('bulb').disabled=hintOpened||['loading','complete','resetting'].includes(value);}
   function frame(r,i){r.frames[r.frame].hidden=true;r.frames[i].hidden=false;r.frame=i;}
   function render(){
+    for(const p of parcels)p.el.style.transform=`translate(${p.x}px, ${p.y-1109*76/1254}px)`;
     for(const r of residents){
       r.el.style.transform=`translate(${r.x}px, ${r.y-r.feet[r.frame]*r.size/1254}px)`;
       r.el.dataset.feetY=r.y;r.el.dataset.frame=r.frame;r.el.dataset.settled=String(r.settled);
@@ -307,22 +325,22 @@
       if(fade)r.el.style.opacity=r.shadow.style.opacity=Math.min(1,t*5);
     });frame(r,0);render();
   }
-  function hint(show,focus=false){
-    if(['loading','complete','resetting'].includes(phase))return;
-    $('instruction').hidden=!show;$('intro').hidden=show;
-    $('bulb').setAttribute('aria-expanded',String(show));
-    if(show){$('bulb').classList.remove('pulse');if(focus)$('closeHint').focus({preventScroll:true});}
+  function showTask(){
+    $('instruction').hidden=!hintOpened;$('intro').hidden=hintOpened;
+    $('bulb').setAttribute('aria-expanded',String(hintOpened));
   }
-  function hideHint(){ $('instruction').hidden=true;$('bulb').setAttribute('aria-expanded','false'); }
-  $('bulb').addEventListener('click',()=>hint($('instruction').hidden,true));
-  $('closeHint').addEventListener('click',()=>{hint(false);$('bulb').focus({preventScroll:true});});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('instruction').hidden){hint(false);$('bulb').focus({preventScroll:true});}});
+  function hideHint(){ $('instruction').hidden=true; }
+  $('bulb').addEventListener('click',()=>{
+    if(hintOpened||['loading','complete','resetting'].includes(phase))return;
+    hintOpened=true;showTask();setPhase(phase);
+    $('hintTitle').setAttribute('tabindex','-1');$('hintTitle').focus({preventScroll:true});
+  });
   async function enter(){
     const r=residents[current];setPhase('entering');$('stage').dataset.resident=r.id;
     $('hintTitle').textContent=`Где живёт ${r.name.toLowerCase()}?`;$('condition').textContent=r.hint;
     $('hintNumber').textContent=`ЖИТЕЛЬ ${current+1} ИЗ ${residents.length}`;
     $('progress').textContent=`ЛИФТ · ${current} ИЗ ${residents.length} ДОМА`;
-    hideHint();$('intro').hidden=false;$('bulb').classList.toggle('pulse',current>0);
+    showTask();
     buttons.forEach(b=>{b.classList.remove('selected','shake');b.removeAttribute('aria-pressed');});
     r.x=165;r.y=FLOOR_Y[0];frame(r,0);r.el.hidden=r.shadow.hidden=false;r.el.style.opacity=r.shadow.style.opacity=0;r.el.classList.add('foreground');
     r.el.setAttribute('aria-label',`${r.name} входит в лифт`);announce(`${r.name} входит в лифт.`);render();
@@ -330,12 +348,13 @@
     r.el.setAttribute('aria-label',`${r.name} ждёт в лифте`);announce(`${r.name} ждёт. Нажми на лампочку и выбери этаж.`);
   }
   async function chooseFloor(f,button){
-    if(phase!=='ready')return;
+    if(phase!=='ready'||!hintOpened)return;
+    if(slide===2){await deliver(f,button);return;}
     const r=residents[current];
     if(f!==r.floor){
-      button.classList.remove('shake');void button.offsetWidth;button.classList.add('shake');$('bulb').classList.add('pulse');announce('Посмотри подсказку ещё раз.');return;
+      button.classList.remove('shake');void button.offsetWidth;button.classList.add('shake');announce('Посмотри подсказку ещё раз.');return;
     }
-    setPhase('closing');button.classList.add('selected');button.setAttribute('aria-pressed','true');hideHint();$('intro').hidden=false;$('bulb').classList.remove('pulse');
+    setPhase('closing');button.classList.add('selected');button.setAttribute('aria-pressed','true');showTask();
     announce(`Верно! ${r.name} отправляется домой.`);
     await doors(0);setPhase('riding');await ride(FLOOR_Y[f-1],r);
     setPhase('opening');await doors(1);setPhase('exiting');r.el.classList.add('foreground');
@@ -346,10 +365,41 @@
     if(current<residents.length)await enter();else finish();
   }
   function finish(){
+    $('nextSlide').hidden=false;$('restart').hidden=true;
     setPhase('complete');hideHint();$('intro').hidden=true;$('success').hidden=false;$('restart').disabled=false;$('bulb').classList.remove('pulse');
     for(const r of residents){frame(r,5);r.light.style.opacity=1;}
-    $('sparkles').hidden=false;render();announce('Дом заселён! Все шесть друзей нашли свои квартиры.');$('restart').focus({preventScroll:true});
+    $('sparkles').hidden=false;render();announce('Дом заселён! Все шесть друзей нашли свои квартиры.');$('nextSlide').focus({preventScroll:true});
   }
+  async function moveParcel(p,target,fade=false){
+    const origin=p.x;await animate(Math.abs(target-origin)/90*1000,t=>{p.x=origin+(target-origin)*t;if(fade)p.el.style.opacity=Math.min(1,t*5);});
+  }
+  async function nextParcel(){
+    const p=parcels[current];setPhase('entering');$('stage').dataset.resident='parcel-'+(current+1);
+    $('hintNumber').textContent=`ПОСЫЛКА ${current+1} ИЗ 6`;$('hintTitle').textContent='Кому посылка?';$('condition').textContent=p.hint;
+    document.querySelector('#instruction .cardHint').textContent='Соседи живут этажом выше или ниже.';showTask();
+    buttons.forEach(b=>{b.classList.remove('selected','shake');b.removeAttribute('aria-pressed');});
+    p.x=165;p.y=FLOOR_Y[0];p.el.hidden=false;p.el.style.opacity=0;p.el.classList.add('foreground');
+    await moveParcel(p,255,true);p.el.classList.remove('foreground');setPhase('ready');announce('Прочитай условие и выбери этаж для посылки.');
+  }
+  async function deliver(f,button){
+    const p=parcels[current];
+    if(f!==p.floor){button.classList.remove('shake');void button.offsetWidth;button.classList.add('shake');announce('Посмотри условие ещё раз.');return;}
+    setPhase('closing');button.classList.add('selected');await doors(0);setPhase('riding');await ride(FLOOR_Y[f-1],p);
+    setPhase('opening');await doors(1);setPhase('exiting');p.el.classList.add('foreground');await moveParcel(p,665);
+    p.el.setAttribute('aria-label',`Посылка доставлена, этаж ${f}`);p.el.dataset.delivered='true';
+    const recipient=residents.find(r=>r.floor===f);frame(recipient,5);render();
+    setPhase('returning');await doors(0);await ride(FLOOR_Y[0]);await doors(1);frame(recipient,0);current++;
+    if(current<parcels.length){await nextParcel();return;}
+    setPhase('complete');hideHint();$('success').hidden=false;$('successTitle').textContent='Все посылки доставлены!';
+    document.querySelector('#success .condition').textContent='Каждый житель получил свою посылку.';
+    $('nextSlide').hidden=true;$('restart').hidden=false;$('restart').disabled=false;$('sparkles').hidden=false;
+    residents.forEach(r=>frame(r,5));render();announce('Все посылки доставлены!');$('restart').focus({preventScroll:true});
+  }
+  $('nextSlide').addEventListener('click',async()=>{
+    if(phase!=='complete'||slide!==1)return;
+    slide=2;current=0;$('stage').dataset.slide='2';$('success').hidden=true;$('sparkles').hidden=true;
+    residents.forEach(r=>frame(r,0));await nextParcel();
+  });
   for(let i=0;i<18;i++){
     const star=document.createElement('span');star.className='sparkle';star.textContent='✦';star.style.left=(455+(i%3)*155)+'px';star.style.top=(FLOOR_Y[Math.floor(i/3)]-100-(i%3)*12)+'px';star.style.animationDelay=(i%4)*.2+'s';$('sparkles').append(star);
   }
@@ -359,6 +409,10 @@
     if(current>0)await animate(250,t=>residents.forEach(r=>r.el.style.opacity=r.shadow.style.opacity=1-t));
     for(const r of residents){r.el.hidden=r.shadow.hidden=true;r.light.style.opacity=0;r.settled=false;frame(r,0);}
     document.querySelectorAll('.floorLabel').forEach(el=>el.classList.remove('occupied'));
+    slide=1;$('stage').dataset.slide='1';
+    parcels.forEach(p=>{p.el.hidden=true;delete p.el.dataset.delivered;});
+    $('successTitle').textContent='Дом заселён!';document.querySelector('#success .condition').textContent='Все шесть друзей нашли свои квартиры!';
+    document.querySelector('#instruction .cardHint').textContent='Выбери кнопку нужного этажа.';
     current=0;carFloor=FLOOR_Y[0];openness=1;await enter();
   }
   $('restart').addEventListener('click',start);$('retry').addEventListener('click',()=>location.reload());
