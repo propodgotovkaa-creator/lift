@@ -1,1 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лифт — помоги коту найти дом</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+  body { background: #e0ecf3; color: #4b4036; font-family: Arial, sans-serif; }
+  button { font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  button:disabled { cursor: default; }
+  button:focus-visible { outline: 4px solid #467590; outline-offset: 5px; }
+  [hidden] { display: none !important; }
+  #viewport { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1672px; height: 940.5px; transform-origin: center; overflow: hidden; isolation: isolate; user-select: none; }
+  #background { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .art { position: absolute; overflow: hidden; pointer-events: none; }
+  .art img { position: absolute; max-width: none; pointer-events: none; }
+  #panel { left: 40px; top: 58px; width: 144px; height: 825px; z-index: 7; }
+  #bulb { position: absolute; left: 62px; top: 92px; width: 100px; height: 127px; padding: 0; background: none; border: 0; z-index: 9; }
+  #bulbArt { inset: 0; }
+  #glow { width: 185px; height: 185px; left: -42px; top: -31px; opacity: 0; }
+  #bulb.pulse #glow { animation: glow 2.2s ease-in-out infinite; }
+  .floorButton { position: absolute; left: 64px; width: 96px; height: 96px; border: 0; border-radius: 50%; padding: 0; background: none; z-index: 9; color: #514337; font-size: 46px; font-weight: 600; display: grid; place-items: center; }
+  .floorButton .art { inset: 0; }
+  .floorButton span { position: relative; line-height: 1; }
+  .floorButton:hover:not(:disabled) { filter: brightness(1.06); }
+  .floorButton:active:not(:disabled) { transform: scale(.96); }
+  .floorButton.selected { color: #426346; filter: brightness(1.08); }
+  .floorButton.shake { animation: shake .45s ease-in-out; }
+  .floorLabel { position: absolute; left: 371px; width: 45px; line-height: 47px; text-align: center; border: 2px solid #d7b88d; border-radius: 10px; background: #fff1d5; color: #564637; font-size: 38px; font-weight: 700; z-index: 1; }
+  .liftPart { position: absolute; left: 229px; top: 0; width: 130px; height: 130px; will-change: transform; pointer-events: none; }
+  #cabinBack { z-index: 2; }
+  #cabinBack > .art, #frame { inset: 0; }
+  #cabinFront { z-index: 4; }
+  #doorClip { position: absolute; inset: 5px; overflow: hidden; }
+  .door { top: 0; bottom: 0; width: 50%; will-change: transform; }
+  #leftDoor { left: 0; }
+  #rightDoor { right: 0; }
+  #frame { z-index: 2; }
+  #cat { position: absolute; left: 0; top: 0; width: 110px; height: 110px; z-index: 3; opacity: 0; pointer-events: none; will-change: transform; }
+  #cat.foreground { z-index: 5; }
+  #cat img { position: absolute; left: 0; top: 0; width: 110px; height: 110px; max-width: none; }
+  #catShadow { position: absolute; left: 0; top: 0; width: 67px; height: 6px; border-radius: 50%; background: #694a343e; filter: blur(2px); z-index: 2; pointer-events: none; opacity: 0; }
+  #roomLight { position: absolute; left: 427px; top: 490px; width: 532px; height: 142px; background: radial-gradient(ellipse at 50% 90%, #ffe19377, transparent 75%); z-index: 1; opacity: 0; transition: opacity 1s; pointer-events: none; }
+  #intro { position: absolute; left: 1060px; top: 250px; width: 545px; text-align: center; color: #425263; }
+  .eyebrow { font-size: 18px; font-weight: 700; letter-spacing: 3px; color: #8c6945; margin: 0 0 23px; }
+  #intro h1 { font-size: 46px; line-height: 1.16; margin: 0 0 30px; }
+  #intro > p:last-child { font-size: 27px; line-height: 1.5; margin: 0; }
+  .card { position: absolute; left: 1050px; top: 225px; width: 563px; height: 437px; z-index: 10; }
+  .cardArt { inset: 0; }
+  .cardContent { position: absolute; inset: 51px 47px 39px; text-align: center; }
+  .card .eyebrow { font-size: 16px; margin-bottom: 20px; }
+  .card h2 { font-size: 35px; line-height: 1.15; margin: 0 0 27px; }
+  .condition { font-size: 31px; line-height: 1.45; margin: 0; }
+  .cardHint { font-size: 19px; color: #89715b; margin: 25px 0 0; }
+  #closeHint { position: absolute; top: 20px; right: 23px; width: 43px; height: 43px; border: 0; background: none; border-radius: 50%; color: #8b6645; font-size: 37px; line-height: 1; z-index: 2; }
+  .action { margin-top: 26px; padding: 16px 24px; border: 1px solid #bd9252; border-radius: 18px; background: #ffefd0; box-shadow: 0 3px 0 #c8a56d; color: #654629; font-size: 23px; font-weight: 600; }
+  .action:hover { background: #ffe4b2; }
+  #loading { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #e3f0f5f5; z-index: 20; font-size: 28px; text-align: center; padding: 100px; }
+  #loadDetails { font-size: 20px; line-height: 1.5; }
+  .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @keyframes glow { 0%,100% { opacity: .09; transform: scale(.92); } 50% { opacity: .3; transform: scale(1.06); } }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  @media (prefers-reduced-motion: reduce) { #bulb.pulse #glow { animation: none; opacity: .2; } .floorButton.shake { animation: none; } }
+</style>
+</head>
+<body>
+<main id="viewport" aria-label="Логическая игра Лифт">
+  <div id="stage" data-phase="loading">
+    <img id="background" src="./lift-background-v1.png" alt="Дом с шестью этажами, лифтом слева и открытыми квартирами">
+    <div id="roomLight" aria-hidden="true"></div>
+    <div id="cabinBack" class="liftPart" aria-hidden="true"><div id="interior" class="art"></div></div>
+    <div id="catShadow" aria-hidden="true"></div>
+    <div id="cat" role="img" aria-label="Кот входит в лифт"></div>
+    <div id="cabinFront" class="liftPart" aria-hidden="true">
+      <div id="doorClip"><div id="leftDoor" class="door art"></div><div id="rightDoor" class="door art"></div></div>
+      <div id="frame" class="art"></div>
+    </div>
+    <div id="floorLabels" aria-hidden="true"></div>
+    <div id="panel" class="art" aria-hidden="true"></div>
+    <button id="bulb" class="pulse" aria-label="Открыть подсказку" aria-controls="instruction" aria-expanded="false" disabled>
+      <span id="glow" class="art" aria-hidden="true"></span><span id="bulbArt" class="art" aria-hidden="true"></span>
+    </button>
+    <div id="buttons" role="group" aria-label="Выберите этаж"></div>
+    <div id="intro"><p class="eyebrow">ЛИФТ</p><h1>Помоги коту<br>найти свой дом</h1><p>Нажми на лампочку,<br>чтобы прочитать подсказку.</p></div>
+    <section id="instruction" class="card" aria-labelledby="hintTitle" hidden>
+      <div class="cardArt art" aria-hidden="true"></div>
+      <button id="closeHint" aria-label="Закрыть подсказку">×</button>
+      <div class="cardContent"><p class="eyebrow">ПОДСКАЗКА</p><h2 id="hintTitle">Где живёт кот?</h2><p class="condition">Кот живёт выше второго этажа, но ниже четвёртого.</p><p class="cardHint">Выбери кнопку нужного этажа.</p></div>
+    </section>
+    <section id="success" class="card" aria-labelledby="successTitle" hidden>
+      <div class="cardArt art" aria-hidden="true"></div>
+      <div class="cardContent"><p class="eyebrow">ПОЛУЧИЛОСЬ!</p><h2 id="successTitle">Кот дома!</h2><p class="condition">Его квартира<br>на третьем этаже.</p><button id="restart" class="action">Играть ещё раз ↻</button></div>
+    </section>
+    <p id="status" class="srOnly" role="status" aria-live="polite"></p>
+    <div id="loading" role="status"><p id="loadTitle">Загружаем дом…</p><p id="loadDetails"></p><button id="retry" class="action" hidden>Попробовать ещё раз</button></div>
+  </div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  // Эти пути соответствуют текущей структуре репозитория lift.
+  const CAT_FOLDER = './gitkeep/';
+  const asset = name => `${name.startsWith('cat-') ? CAT_FOLDER : './'}lift-${name}-v1.png`;
+  // Размеры исходных PNG и границы полезного изображения без прозрачных полей.
+  // Обрезка происходит только при отображении, сами файлы не изменяются.
+  const ART = {
+    panel: ['control-panel', [946,1662], [303,72,643,1593]],
+    bulb: ['bulb', [1254,1254], [276,129,978,1131]],
+    glow: ['bulb-glow', [1254,1254], [0,0,1254,1254]],
+    button: ['floor-button', [1254,1254], [146,131,1107,1093]],
+    interior: ['cabin-interior', [1312,1199], [174,147,1140,1050]],
+    frame: ['cabin-frame', [1292,1218], [86,83,1207,1120]],
+    left: ['door-left', [887,1774], [135,90,753,1685]],
+    right: ['door-right', [887,1774], [129,88,758,1684]],
+    card: ['instruction-card', [1345,1170], [38,107,1310,1058]]
+  };
+  function art(element, key) {
+    const [name,[w,h],[l,t,r,b]] = ART[key];
+    const img = new Image(); img.alt = ''; img.draggable = false; img.src = asset(name);
+    Object.assign(img.style, {width:`${100*w/(r-l)}%`, height:`${100*h/(b-t)}%`, left:`${-100*l/(r-l)}%`, top:`${-100*t/(b-t)}%`});
+    element.append(img);
+  }
+  [['panel','panel'],['bulbArt','bulb'],['glow','glow'],['interior','interior'],['frame','frame'],['leftDoor','left'],['rightDoor','right']].forEach(([id,key]) => art($(id),key));
+  document.querySelectorAll('.cardArt').forEach(el => art(el,'card'));
 
+  // Координаты пола в исходном фоне (снизу вверх).
+  const FLOOR_Y = [901, 766, 622, 474, 312, 150];
+  const CAT_SIZE = 110;
+  const SOURCE_SIZE = 1254;
+  // Нижняя точка ОПОРНЫХ лап каждого кадра. Все кадры получают одну линию пола.
+  const FOOT_Y = [1179, 1169, 1168, 1170, 1183, 1183];
+  const FRAME_NAMES = ['cat-idle','cat-walk-1','cat-walk-2','cat-walk-3','cat-walk-4','cat-wave'];
+  const catFrames = FRAME_NAMES.map((name,i) => {
+    const img = new Image(); img.src = asset(name); img.alt = ''; img.draggable = false; img.hidden = i !== 0;
+    $('cat').append(img); return img;
+  });
+  const buttons = [];
+  for (let f=6; f>=1; f--) {
+    const button = document.createElement('button'); button.className='floorButton'; button.style.top=`${245+(6-f)*100}px`;
+    button.disabled=true; button.dataset.floor=String(f); button.setAttribute('aria-label',`Этаж ${f}`);
+    const plate=document.createElement('div'); plate.className='art'; art(plate,'button');
+    const digit=document.createElement('span'); digit.textContent=f;
+    button.append(plate,digit); button.addEventListener('click',()=>chooseFloor(f,button)); $('buttons').append(button); buttons.push(button);
+    const label=document.createElement('div'); label.className='floorLabel'; label.textContent=f; label.style.top=`${FLOOR_Y[f-1]-95}px`; $('floorLabels').append(label);
+  }
+  let phase='loading', frameIndex=0, catX=165, catFloor=FLOOR_Y[0], carFloor=FLOOR_Y[0], openness=1;
+  const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function setPhase(value) { phase=value; $('stage').dataset.phase=value; buttons.forEach(b=>b.disabled=value!=='ready'); }
+  function setFrame(i) {
+    if(i!==frameIndex) { catFrames[frameIndex].hidden=true; catFrames[i].hidden=false; frameIndex=i; }
+  }
+  function render() {
+    // Кот позиционируется по лапам, а не по верхнему краю PNG.
+    const catTop=catFloor-FOOT_Y[frameIndex]*CAT_SIZE/SOURCE_SIZE;
+    $('cat').style.transform=`translate(${catX}px, ${catTop}px)`;
+    $('cat').dataset.feetY=catFloor.toFixed(3); $('cat').dataset.frame=frameIndex;
+    $('catShadow').style.transform=`translate(${catX+31}px, ${catFloor-3}px)`;
+    const liftTop=carFloor-124;
+    $('cabinBack').style.transform=`translateY(${liftTop}px)`;
+    $('cabinFront').style.transform=`translateY(${liftTop}px)`;
+    $('leftDoor').style.transform=`translateX(${-100*openness}%)`;
+    $('rightDoor').style.transform=`translateX(${100*openness}%)`;
+  }
+  function animate(ms, update, easing=t=>t) {
+    const length=reducedMotion?Math.min(ms,800):ms;
+    return new Promise(resolve=>{
+      let elapsed=0, previous=null;
+      function tick(now) {
+        if(previous!==null && !document.hidden) elapsed+=Math.min(50,now-previous);
+        previous=now;
+        const progress=Math.min(elapsed/length,1); update(easing(progress)); render();
+        if(progress<1) requestAnimationFrame(tick); else resolve();
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+  const smooth=t=>t*t*(3-2*t);
+  async function moveDoors(target) { const start=openness; await animate(650,t=>openness=start+(target-start)*t,smooth); }
+  async function walkTo(target, fadeIn=false) {
+    const start=catX, distance=target-start;
+    // Один полный цикл лап на 48 пикселей пути, без вертикального «подпрыгивания».
+    await animate(Math.abs(distance)/76*1000,t=>{
+      const travelled=distance*t; catX=start+travelled;
+      setFrame(1+Math.floor(Math.abs(travelled)/12)%4);
+      if(fadeIn) { const opacity=Math.min(1,t*5); $('cat').style.opacity=opacity; $('catShadow').style.opacity=opacity; }
+    });
+    setFrame(0); render();
+  }
+  function showHint(show, focus=false) {
+    if(phase==='complete'||phase==='loading') return;
+    $('instruction').hidden=!show; $('intro').hidden=show||phase!=='ready';
+    $('bulb').setAttribute('aria-expanded',String(show));
+    if(show) { $('bulb').classList.remove('pulse'); if(focus)$('closeHint').focus({preventScroll:true}); }
+  }
+  $('bulb').addEventListener('click',()=>showHint($('instruction').hidden,true));
+  $('closeHint').addEventListener('click',()=>{showHint(false);$('bulb').focus({preventScroll:true});});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('instruction').hidden){showHint(false);$('bulb').focus({preventScroll:true});}});
+
+  async function start() {
+    if(phase!=='loading'&&phase!=='complete') return;
+    setPhase('entering'); $('restart').disabled=true;
+    // При повторном запуске старый кот сначала плавно исчезает.
+    if(Number($('cat').style.opacity)>0) await animate(200,t=>{$('cat').style.opacity=1-t;$('catShadow').style.opacity=1-t;});
+    $('success').hidden=true; $('instruction').hidden=true; $('intro').hidden=false; $('roomLight').style.opacity=0;
+    $('bulb').disabled=false; $('bulb').classList.add('pulse'); $('bulb').setAttribute('aria-expanded','false');
+    buttons.forEach(b=>{b.classList.remove('selected','shake');b.removeAttribute('aria-pressed');});
+    carFloor=FLOOR_Y[0]; catFloor=FLOOR_Y[0]; catX=165; openness=1; setFrame(0);
+    $('cat').style.opacity=0; $('catShadow').style.opacity=0; $('cat').classList.add('foreground'); render();
+    $('cat').setAttribute('aria-label','Кот входит в лифт');
+    await walkTo(239,true);
+    $('cat').classList.remove('foreground'); setPhase('ready'); $('cat').setAttribute('aria-label','Кот ждёт в лифте');
+    $('status').textContent='Кот ждёт. Нажмите на лампочку и выберите этаж.';
+  }
+  async function chooseFloor(f,button) {
+    if(phase!=='ready') return;
+    if(f!==3) {
+      button.classList.remove('shake'); void button.offsetWidth; button.classList.add('shake');
+      $('bulb').classList.add('pulse'); $('status').textContent='Посмотри подсказку ещё раз.'; return;
+    }
+    setPhase('closing'); button.classList.add('selected'); button.setAttribute('aria-pressed','true');
+    $('bulb').classList.remove('pulse'); $('instruction').hidden=true; $('intro').hidden=true; $('bulb').setAttribute('aria-expanded','false');
+    await moveDoors(0);
+    setPhase('riding'); const origin=carFloor;
+    await animate(2300,t=>{carFloor=origin+(FLOOR_Y[2]-origin)*t;catFloor=carFloor;},smooth);
+    setPhase('opening'); await moveDoors(1);
+    setPhase('exiting'); $('cat').classList.add('foreground');
+    // Выход по переднему краю разреза: одна горизонтальная линия до места в комнате.
+    await walkTo(540);
+    $('cat').setAttribute('aria-label','Кот в квартире на третьем этаже'); $('roomLight').style.opacity=1;
+    setFrame(5); render(); setPhase('returning');
+    await moveDoors(0); const top=carFloor;
+    await animate(2200,t=>carFloor=top+(FLOOR_Y[0]-top)*t,smooth);
+    await moveDoors(1);
+    setPhase('complete'); $('instruction').hidden=true; $('bulb').disabled=true; $('bulb').setAttribute('aria-expanded','false');
+    $('success').hidden=false; $('restart').disabled=false; $('status').textContent='Кот дома, на третьем этаже!'; $('restart').focus({preventScroll:true});
+  }
+  $('restart').addEventListener('click',start);
+  $('retry').addEventListener('click',()=>location.reload());
+  function resize() { const r=$('viewport').getBoundingClientRect(); $('stage').style.transform=`translate(-50%, -50%) scale(${Math.min(r.width/1672,r.height/940.5)})`; }
+  new ResizeObserver(resize).observe($('viewport')); resize(); render();
+  async function preload() {
+    const missing=[];
+    await Promise.all([...document.images].map(async img=>{
+      try {
+        await new Promise((resolve,reject)=>{
+          if(img.complete) { img.naturalWidth ? resolve() : reject(); return; }
+          img.addEventListener('load',resolve,{once:true});
+          img.addEventListener('error',reject,{once:true});
+        });
+      } catch { missing.push(new URL(img.src).pathname.split('/').slice(-2).join('/')); }
+    }));
+    if(missing.length) {
+      $('loadTitle').textContent='Не удалось загрузить картинки';
+      $('loadDetails').textContent='Проверьте файлы: '+[...new Set(missing)].join(', ');
+      $('retry').hidden=false; return;
+    }
+    $('loading').hidden=true; await start();
+  }
+  preload();
+})();
+</script>
+</body>
+</html>
