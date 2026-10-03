@@ -141,7 +141,7 @@
     "id": "cat",
     "name": "Кот",
     "floor": 3,
-    "hint": "Кот живёт между первым и четвёртым этажами, но не на втором.",
+    "hint": "Кот живёт выше первого этажа, но ниже четвёртого. Не на втором.",
     "version": 1,
     "size": 110,
     "speed": 76,
@@ -231,7 +231,7 @@
     "id": "hedgehog",
     "name": "Ёжик",
     "floor": 1,
-    "hint": "Ёжик живёт ниже кота, но не по соседству с котом.",
+    "hint": "Ёжик живёт ниже кота, но не на втором этаже.",
     "version": 1,
     "size": 100,
     "speed": 64,
@@ -274,12 +274,12 @@
   }
   let slide=1, hintOpened=false;
   const DELIVERIES=[
-    {floor:5,hint:'Получатель живёт выше кота и ниже лисы, но не по соседству с котом.'},
-    {floor:2,hint:'Получатель живёт ниже зайчика и выше ёжика, но не по соседству с зайчиком.'},
-    {floor:6,hint:'Получатель живёт выше зайчика, но не по соседству с зайчиком.'},
-    {floor:3,hint:'Получатель живёт выше медвежонка, но не выше зайчика. Получатель не сосед собаки.'},
-    {floor:1,hint:'Получатель живёт ниже зайчика. Между этажами получателя и кота — ровно один этаж.'},
-    {floor:4,hint:'Получатель живёт выше кота и ниже лисы, но не по соседству с лисой.'}
+    {floor:5,hint:'Посылка для того, кто живёт выше кота, но ниже лисы. Не на четвёртом этаже.'},
+    {floor:2,hint:'Посылка для того, кто живёт ниже зайчика, но выше ёжика. Не на третьем этаже.'},
+    {floor:6,hint:'Посылка для того, кто живёт выше зайчика, но не на пятом этаже.'},
+    {floor:3,hint:'Посылка для того, кто живёт выше ёжика, но ниже собаки. Не на втором и не на четвёртом этаже.'},
+    {floor:1,hint:'Посылка для того, кто живёт ниже зайчика, на два этажа ниже кота.'},
+    {floor:4,hint:'Посылка для того, кто живёт выше кота, но ниже лисы. Не на пятом этаже.'}
   ];
   const parcels=DELIVERIES.map(d=>{
     const el=document.createElement('div');el.className='parcel';el.hidden=true;el.setAttribute('role','img');el.setAttribute('aria-label','Посылка');
@@ -382,7 +382,7 @@
   async function nextParcel(){
     const p=parcels[current];setPhase('entering');$('stage').dataset.resident='parcel-'+(current+1);
     $('hintNumber').textContent=`ПОСЫЛКА ${current+1} ИЗ 6`;$('hintTitle').textContent='Кому посылка?';$('condition').textContent=p.hint;
-    document.querySelector('#instruction .cardHint').textContent='Соседи живут этажом выше или ниже.';showTask();
+    document.querySelector('#instruction .cardHint').textContent='Выбери кнопку нужного этажа.';showTask();
     buttons.forEach(b=>{b.classList.remove('selected','shake');b.removeAttribute('aria-pressed');});
     p.x=165;p.y=FLOOR_Y[0];p.el.hidden=false;p.el.style.opacity=0;p.el.classList.add('foreground');
     await moveParcel(p,255,true);p.el.classList.remove('foreground');setPhase('ready');announce('Прочитай условие и выбери этаж для посылки.');
