@@ -58,7 +58,7 @@
   #closeHint { position: absolute; top: 20px; right: 23px; width: 43px; height: 43px; border: 0; background: none; border-radius: 50%; color: #8b6645; font-size: 37px; line-height: 1; z-index: 2; }
   .action { margin-top: 26px; padding: 16px 24px; border: 1px solid #bd9252; border-radius: 18px; background: #ffefd0; box-shadow: 0 3px 0 #c8a56d; color: #654629; font-size: 23px; font-weight: 600; }
   .action:hover { background: #ffe4b2; }
-  #loading { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #e3f0f5f5; z-index: 20; font-size: 28px; text-align: center; padding: 100px; }
+  #loading { display: none !important; position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #e3f0f5f5; z-index: 20; font-size: 28px; text-align: center; padding: 100px; }
   #loadDetails { font-size: 20px; line-height: 1.5; }
   .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   @keyframes glow { 0%,100% { opacity: .09; transform: scale(.92); } 50% { opacity: .3; transform: scale(1.06); } }
@@ -108,6 +108,7 @@
       <div class="cardContent"><p class="eyebrow">ПОЛУЧИЛОСЬ!</p><h2 id="successTitle">Дом заселён!</h2><p class="condition">Все шесть друзей<br>нашли свои квартиры!</p><button id="nextSlide" class="action" hidden>Доставить посылки →</button><button id="restart" class="action">Играть ещё раз ↻</button></div>
     </section>
     <div id="sparkles" aria-hidden="true" hidden></div><p id="status" class="srOnly" role="status" aria-live="polite"></p>
+    <div id="loading" role="status"><p id="loadTitle">Загружаем дом…</p><p id="loadDetails"></p><button id="retry" class="action" hidden>Попробовать ещё раз</button></div>
   </div>
 </main>
 <script>
@@ -422,7 +423,7 @@
     document.querySelector('#instruction .cardHint').textContent='Выбери кнопку нужного этажа.';
     current=0;carFloor=FLOOR_Y[0];openness=1;await enter();
   }
-  $('restart').addEventListener('click',start);
+  $('restart').addEventListener('click',start);$('retry').addEventListener('click',()=>location.reload());
   function resize(){const rect=$('viewport').getBoundingClientRect();$('stage').style.transform=`translate(-50%, -50%) scale(${Math.min(rect.width/1672,rect.height/940.5)})`;}
   new ResizeObserver(resize).observe($('viewport'));resize();render();
   async function preload(){
@@ -434,8 +435,8 @@
       if(img.complete){done(img.naturalWidth>0);return;}
       img.addEventListener('load',loaded,{once:true});img.addEventListener('error',failed,{once:true});timer=setTimeout(failed,45000);
     })));
-    if(missing.length){console.error('Не удалось загрузить картинки:', [...new Set(missing)].join(', '));return;}
-    await start();
+    if(missing.length){$('loadTitle').textContent='Не удалось загрузить картинки';$('loadDetails').textContent='Проверьте файлы: '+[...new Set(missing)].join(', ');$('retry').hidden=false;return;}
+    $('loading').hidden=true;await start();
   }
   preload();
 })();
