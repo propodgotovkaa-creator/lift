@@ -70,7 +70,6 @@
   .card h2 { font-size:32px; margin-bottom:20px; }
   .condition { font-size:29px; line-height:1.4; }
   .cardHint { margin-top:18px; }
-  #travel { position:absolute; left:1080px; top:680px; width:500px; text-align:center; font-size:25px; line-height:1.4; color:#526475; }
   #sparkles { position:absolute; inset:0; pointer-events:none; z-index:6; }
   .sparkle { position:absolute; color:#e4ac38; font-size:25px; animation:twinkle 1.5s ease-in-out 3 alternate; }
   @keyframes twinkle { from {opacity:0; transform:scale(.4) rotate(0deg);} to {opacity:1; transform:scale(1) rotate(30deg);} }
@@ -91,7 +90,7 @@
     </div>
     <div id="floorLabels" aria-hidden="true"></div>
     <div id="panel" class="art" aria-hidden="true"></div>
-    <button id="bulb" class="pulse" aria-label="Открыть подсказку" aria-controls="instruction" aria-expanded="false" disabled>
+    <button id="bulb" aria-label="Открыть подсказку" aria-controls="instruction" aria-expanded="false" disabled>
       <span id="glow" class="art" aria-hidden="true"></span><span id="bulbArt" class="art" aria-hidden="true"></span>
     </button>
     <div id="buttons" role="group" aria-label="Выберите этаж"></div>
@@ -105,7 +104,7 @@
       <div class="cardArt art" aria-hidden="true"></div>
       <div class="cardContent"><p class="eyebrow">ПОЛУЧИЛОСЬ!</p><h2 id="successTitle">Дом заселён!</h2><p class="condition">Все шесть друзей<br>нашли свои квартиры!</p><button id="restart" class="action">Играть ещё раз ↻</button></div>
     </section>
-    <div id="sparkles" aria-hidden="true" hidden></div><p id="travel" aria-hidden="true"></p><p id="status" class="srOnly" role="status" aria-live="polite"></p>
+    <div id="sparkles" aria-hidden="true" hidden></div><p id="status" class="srOnly" role="status" aria-live="polite"></p>
     <div id="loading" role="status"><p id="loadTitle">Загружаем дом…</p><p id="loadDetails"></p><button id="retry" class="action" hidden>Попробовать ещё раз</button></div>
   </div>
 </main>
@@ -139,7 +138,7 @@
     "id": "cat",
     "name": "Кот",
     "floor": 3,
-    "hint": "Кот живёт выше второго этажа, но ниже четвёртого.",
+    "hint": "Кот живёт выше первого этажа, но ниже четвёртого. Не на втором.",
     "version": 1,
     "size": 110,
     "speed": 76,
@@ -157,7 +156,7 @@
     "id": "rabbit",
     "name": "Зайчик",
     "floor": 4,
-    "hint": "Зайчик живёт на один этаж выше кота.",
+    "hint": "Зайчик — сосед кота. Он живёт этажом выше.",
     "version": 1,
     "size": 110,
     "speed": 76,
@@ -211,7 +210,7 @@
     "id": "dog",
     "name": "Собака",
     "floor": 5,
-    "hint": "Собака живёт между медвежонком и лисой. Её квартира ещё свободна.",
+    "hint": "Собака живёт выше зайчика, но ниже лисы.",
     "version": 1,
     "size": 110,
     "speed": 76,
@@ -229,7 +228,7 @@
     "id": "hedgehog",
     "name": "Ёжик",
     "floor": 1,
-    "hint": "Ёжик не живёт на втором этаже. Его этаж ниже четвёртого.",
+    "hint": "Ёжик живёт ниже кота, но не на соседнем с ним этаже.",
     "version": 1,
     "size": 100,
     "speed": 64,
@@ -270,7 +269,7 @@
     button.addEventListener('click',()=>chooseFloor(f,button));$('buttons').append(button);buttons.push(button);
     const label=document.createElement('div');label.className='floorLabel';label.id='floor-'+f;label.textContent=f;label.style.top=`${FLOOR_Y[f-1]-95}px`;$('floorLabels').append(label);
   }
-  function announce(text){$('status').textContent=text;$('travel').textContent=text;}
+  function announce(text){$('status').textContent=text;}
   function setPhase(value){phase=value;$('stage').dataset.phase=value;buttons.forEach(b=>b.disabled=value!=='ready');$('bulb').disabled=['loading','complete','resetting'].includes(value);}
   function frame(r,i){r.frames[r.frame].hidden=true;r.frames[i].hidden=false;r.frame=i;}
   function render(){
@@ -323,13 +322,12 @@
     $('hintTitle').textContent=`Где живёт ${r.name.toLowerCase()}?`;$('condition').textContent=r.hint;
     $('hintNumber').textContent=`ЖИТЕЛЬ ${current+1} ИЗ ${residents.length}`;
     $('progress').textContent=`ЛИФТ · ${current} ИЗ ${residents.length} ДОМА`;
-    hideHint();$('intro').hidden=false;$('bulb').classList.add('pulse');
+    hideHint();$('intro').hidden=false;$('bulb').classList.toggle('pulse',current>0);
     buttons.forEach(b=>{b.classList.remove('selected','shake');b.removeAttribute('aria-pressed');});
     r.x=165;r.y=FLOOR_Y[0];frame(r,0);r.el.hidden=r.shadow.hidden=false;r.el.style.opacity=r.shadow.style.opacity=0;r.el.classList.add('foreground');
     r.el.setAttribute('aria-label',`${r.name} входит в лифт`);announce(`${r.name} входит в лифт.`);render();
     await walk(r,239,true);r.el.classList.remove('foreground');setPhase('ready');
     r.el.setAttribute('aria-label',`${r.name} ждёт в лифте`);announce(`${r.name} ждёт. Нажми на лампочку и выбери этаж.`);
-    $('bulb').focus({preventScroll:true});
   }
   async function chooseFloor(f,button){
     if(phase!=='ready')return;
