@@ -141,7 +141,7 @@
     "id": "cat",
     "name": "Кот",
     "floor": 3,
-    "hint": "Кот живёт выше первого этажа, но ниже четвёртого. Не на втором.",
+    "hint": "Кот живёт между первым и четвёртым этажами, но не на втором.",
     "version": 1,
     "size": 110,
     "speed": 76,
@@ -159,7 +159,7 @@
     "id": "rabbit",
     "name": "Зайчик",
     "floor": 4,
-    "hint": "Зайчик — сосед кота. Он живёт этажом выше.",
+    "hint": "Зайчик живёт на один этаж выше кота.",
     "version": 1,
     "size": 110,
     "speed": 76,
@@ -231,7 +231,7 @@
     "id": "hedgehog",
     "name": "Ёжик",
     "floor": 1,
-    "hint": "Ёжик живёт ниже кота, но не на соседнем с ним этаже.",
+    "hint": "Ёжик живёт ниже кота, но не по соседству с котом.",
     "version": 1,
     "size": 100,
     "speed": 64,
@@ -274,12 +274,12 @@
   }
   let slide=1, hintOpened=false;
   const DELIVERIES=[
-    {floor:5,hint:'Получатель живёт выше кота, но ниже лисы. Он не сосед кота.'},
-    {floor:2,hint:'Посылка едет ниже зайчика, но не на соседний с ним этаж. Получатель живёт выше ёжика.'},
-    {floor:6,hint:'Посылка едет выше зайчика, но не на соседний с ним этаж.'},
-    {floor:3,hint:'Получатель живёт выше медвежонка, но не выше зайчика. Он не сосед собаки.'},
-    {floor:1,hint:'Получатель живёт ниже зайчика. Между ним и котом ровно один этаж.'},
-    {floor:4,hint:'Получатель живёт выше кота, но ниже лисы. Он не сосед лисы.'}
+    {floor:5,hint:'Получатель живёт выше кота и ниже лисы, но не по соседству с котом.'},
+    {floor:2,hint:'Получатель живёт ниже зайчика и выше ёжика, но не по соседству с зайчиком.'},
+    {floor:6,hint:'Получатель живёт выше зайчика, но не по соседству с зайчиком.'},
+    {floor:3,hint:'Получатель живёт выше медвежонка, но не выше зайчика. Получатель не сосед собаки.'},
+    {floor:1,hint:'Получатель живёт ниже зайчика. Между этажами получателя и кота — ровно один этаж.'},
+    {floor:4,hint:'Получатель живёт выше кота и ниже лисы, но не по соседству с лисой.'}
   ];
   const parcels=DELIVERIES.map(d=>{
     const el=document.createElement('div');el.className='parcel';el.hidden=true;el.setAttribute('role','img');el.setAttribute('aria-label','Посылка');
@@ -318,10 +318,12 @@
     if(start===target)return;
     await animate(700+Math.abs(target-start)*3,t=>{carFloor=start+(target-start)*t;if(r)r.y=carFloor;},smooth);
   }
-  async function walk(r,target,fade=false){
+  async function walk(r,target,fade=false,onClear=null){
     const start=r.x,distance=target-start;
     await animate(Math.abs(distance)/r.speed*1000,t=>{
-      r.x=start+distance*t;frame(r,reducedMotion?0:1+Math.floor(Math.abs(distance*t)/r.step)%4);
+      r.x=start+distance*t;
+      if(onClear&&r.x>=365){const cleared=onClear;onClear=null;cleared();}
+      frame(r,reducedMotion?0:1+Math.floor(Math.abs(distance*t)/r.step)%4);
       if(fade)r.el.style.opacity=r.shadow.style.opacity=Math.min(1,t*5);
     });frame(r,0);render();
   }
@@ -358,9 +360,10 @@
     announce(`Верно! ${r.name} отправляется домой.`);
     await doors(0);setPhase('riding');await ride(FLOOR_Y[f-1],r);
     setPhase('opening');await doors(1);setPhase('exiting');r.el.classList.add('foreground');
-    await walk(r,540);r.settled=true;frame(r,5);r.light.style.opacity=1;$('floor-'+f).classList.add('occupied');
+    let returnTrip;
+    await walk(r,540,false,()=>{returnTrip=returnLift();});r.settled=true;frame(r,5);r.light.style.opacity=1;$('floor-'+f).classList.add('occupied');
     r.el.setAttribute('aria-label',`${r.name} дома, этаж ${f}`);announce(`${r.name} дома!`);
-    setPhase('returning');await doors(0);await ride(FLOOR_Y[0]);await doors(1);
+    await returnTrip;
     frame(r,0);render();current++;
     if(current<residents.length)await enter();else finish();
   }
@@ -370,8 +373,11 @@
     for(const r of residents){frame(r,5);r.light.style.opacity=1;}
     $('sparkles').hidden=false;render();announce('Дом заселён! Все шесть друзей нашли свои квартиры.');$('nextSlide').focus({preventScroll:true});
   }
-  async function moveParcel(p,target,fade=false){
-    const origin=p.x;await animate(Math.abs(target-origin)/90*1000,t=>{p.x=origin+(target-origin)*t;if(fade)p.el.style.opacity=Math.min(1,t*5);});
+  async function returnLift(){
+    setPhase('returning');await doors(0);await ride(FLOOR_Y[0]);await doors(1);
+  }
+  async function moveParcel(p,target,fade=false,onClear=null){
+    const origin=p.x;await animate(Math.abs(target-origin)/90*1000,t=>{p.x=origin+(target-origin)*t;if(onClear&&p.x>=365){const cleared=onClear;onClear=null;cleared();}if(fade)p.el.style.opacity=Math.min(1,t*5);});
   }
   async function nextParcel(){
     const p=parcels[current];setPhase('entering');$('stage').dataset.resident='parcel-'+(current+1);
@@ -385,10 +391,12 @@
     const p=parcels[current];
     if(f!==p.floor){button.classList.remove('shake');void button.offsetWidth;button.classList.add('shake');announce('Посмотри условие ещё раз.');return;}
     setPhase('closing');button.classList.add('selected');await doors(0);setPhase('riding');await ride(FLOOR_Y[f-1],p);
-    setPhase('opening');await doors(1);setPhase('exiting');p.el.classList.add('foreground');await moveParcel(p,665);
+    setPhase('opening');await doors(1);setPhase('exiting');p.el.classList.add('foreground');
+    let returnTrip;
+    await moveParcel(p,665,false,()=>{returnTrip=returnLift();});
     p.el.setAttribute('aria-label',`Посылка доставлена, этаж ${f}`);p.el.dataset.delivered='true';
     const recipient=residents.find(r=>r.floor===f);frame(recipient,5);render();
-    setPhase('returning');await doors(0);await ride(FLOOR_Y[0]);await doors(1);frame(recipient,0);current++;
+    await returnTrip;frame(recipient,0);current++;
     if(current<parcels.length){await nextParcel();return;}
     setPhase('complete');hideHint();$('success').hidden=false;$('successTitle').textContent='Все посылки доставлены!';
     document.querySelector('#success .condition').textContent='Каждый житель получил свою посылку.';
